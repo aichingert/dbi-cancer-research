@@ -3,4 +3,4 @@
 Finding ways to check if removing a gene is lethal for a human
 
 == Frage 1
-sind die daten von der synletdb uni oder bidirectional und wenn nicht
+* Sind die Daten von der SynletDB uni- oder bidirektional?
