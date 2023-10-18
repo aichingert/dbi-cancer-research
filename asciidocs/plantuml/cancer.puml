@@ -3,25 +3,10 @@ Entity Gene {
 identifier
 --
 name
+being
 }
 
-Entity Being {
-}
+SynLet {}
 
-Entity Human {
-
-}
-Entity Fly {
-
-}
-Entity Mice {
-
-}
-
-
-Mice --|> Being
-Fly --|> Being
-Human --|> Being
-Being }|--|{ Gene
-Gene }|--|{ Gene
+Gene }|--|{ SynLet
 @enduml
