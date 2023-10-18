@@ -1,27 +1,27 @@
 @startuml
-package "dbi-cancer-research" {
-  Entity Gene {
-  identifier
-  --
-   name
-  }
-  Entity Being {
-  }
-  Entity Human {
-  
-  }
-  Entity Fly {
-  
-  }
-  Entity Mice {
-  
-  }
-
-
-  Mice --|> Being
-  Fly --|> Being
-  Human --|> Being
-  Being }|--|{ Gene
-  Gene ||--|{ Gene
+Entity Gene {
+identifier
+--
+name
 }
+
+Entity Being {
+}
+
+Entity Human {
+
+}
+Entity Fly {
+
+}
+Entity Mice {
+
+}
+
+
+Mice --|> Being
+Fly --|> Being
+Human --|> Being
+Being }|--|{ Gene
+Gene }|--|{ Gene
 @enduml
