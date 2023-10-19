@@ -1,12 +1,24 @@
 @startuml
 Entity Gene {
-identifier
---
-name
-being
+  identifier
+  --
+  name
+  - essentialScore
+}
+Entity SynLet {
+  geneId1
+  geneId2
+  --
+  score
+}
+Entity Being {
+  id
+  --
+  name
 }
 
-SynLet {}
-
-Gene }|--|{ SynLet
+Gene }|--|| Being
+SynLet }|--|| Gene
+SynLet }|--|| Gene
+Gene }|--|{ Gene : Mapping
 @enduml
