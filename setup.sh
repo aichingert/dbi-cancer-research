@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DIR="./db"
+DIR="db"
 
 if test ! -d $DIR; then
 	mkdir $DIR
