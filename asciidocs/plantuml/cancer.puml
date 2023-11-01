@@ -1,26 +1,24 @@
 @startuml
-package "Cancer-Research" {
-  Entity Gene {
-    identifier
-    --
-    name
-    - essentialScore
-  }
-  Entity SynLet {
-    geneId1
-    geneId2
-    --
-    score
-  }
-  Entity Being {
-    id
-    --
-    name
-  }
-  
-  Gene }|--|| Being
-  SynLet }|--|| Gene
-  SynLet }|--|| Gene
-  Gene }|--|{ Gene : Mapping
+Entity Gene {
+  identifier
+  --
+  name
+  - essentialScore
 }
+Entity SynLeth {
+  geneId1
+  geneId2
+  --
+  score
+}
+Entity Being {
+  id
+  --
+  name
+}
+
+Gene }|--|| Being
+SynLeth }|--|| Gene
+SynLeth }|--|| Gene
+Gene }o--o{ Gene : Mapping
 @enduml
