@@ -10,7 +10,7 @@ import (
 const (
 	HUMAN = 1
 	MOUSE = 2
-	WORM  = 3
+	YEAST = 3
 )
 
 type gene struct {
@@ -19,14 +19,20 @@ type gene struct {
 	essentialScore *float32
 	being          int
 }
+
 type dependency struct {
 	gene1 gene
 	gene2 gene
 	score float32
 }
 
+type mapping struct {
+	gene1 gene
+	gene2 gene
+}
+
 func main() {
-	//connStr := fmt.Sprintf("oracle://SYSTEM:lol@localhost:%d/ORACLE?PREFETCH_ROWS=%d", 1521, 500)
+	//connStr := fmt.Sprintf("oracle://SYSTEM:lol@localhost:1521/ORACLE?PREFETCH_ROWS=%d", 500)
 
 	/*db, _ := sql.Open("oracle", connStr)
 	err := db.Ping()
@@ -34,44 +40,118 @@ func main() {
 
 	writeBeings()
 
-	human, _ := os.ReadFile("../data/syn-leth/Human_SL.csv")
-	humanSplit := strings.Split(string(human), "\n")
+	human, err := os.ReadFile("../data/syn-leth/Human_SL.csv")
 
-	var humanFormatted [][]string
-	for _, humanInformation := range humanSplit {
-		humanFormatted = append(humanFormatted, strings.Split(humanInformation, ","))
+	if err != nil {
+		fmt.Println("Error Mouse", err)
 	}
 
-	mouse, _ := os.ReadFile("../data/syn-leth/Mouse_SL.csv")
-	mouseSplit := strings.Split(string(mouse), "\n")
+	mouse, err := os.ReadFile("../data/syn-leth/Mouse_SL.csv")
 
-	var mouseFormatted [][]string
-	for _, mouseInformation := range mouseSplit {
-		mouseFormatted = append(mouseFormatted, strings.Split(mouseInformation, ","))
+	if err != nil {
+		fmt.Println("Error Mouse", err)
 	}
 
-	worm, _ := os.ReadFile("../data/syn-leth/Worm_SL.csv")
-	wormSplit := strings.Split(string(worm), "\n")
+	yeast, err := os.ReadFile("../data/syn-leth/Yeast_SL.csv")
 
-	var wormFormatted [][]string
-	for _, wormInformation := range wormSplit {
-		wormFormatted = append(wormFormatted, strings.Split(wormInformation, ","))
+	if err != nil {
+		fmt.Println("Error Yeast", err)
 	}
 
-	genes, dependencies := fillGenesAndDependencies(humanFormatted, mouseFormatted, wormFormatted)
+	genes, dependencies := fillGenesAndDependencies(
+		formatCSV(human, true),
+		formatCSV(mouse, true),
+		formatCSV(yeast, true))
+
+	mouseMappings, err := os.ReadFile("../data/oma/mouse-mapping.csv")
+
+	if err != nil {
+		fmt.Println("Error Mouse Mapping", err)
+	}
+
+	yeastMappings, err := os.ReadFile("../data/oma/yeast-mapping.csv")
+
+	if err != nil {
+		fmt.Println("Error Yeast Mapping", err)
+	}
+
+	mappings := fillMappings(genes, formatCSV(mouseMappings, false), formatCSV(yeastMappings, false))
+
 	writeGenes(genes)
 	writeDependencies(dependencies)
+	writeMappings(mappings)
 }
 
-func fillGenesAndDependencies(human [][]string, mouse [][]string, worm [][]string) ([]gene, []dependency) {
+func fillMappings(genes []gene, mouseMappings [][]string, yeastMappings [][]string) []mapping {
+	mouse := fillBeingMapping(genes, mouseMappings, MOUSE)
+	yeast := fillBeingMapping(genes, yeastMappings, YEAST)
+
+	return append(mouse, yeast...)
+}
+
+func fillBeingMapping(genes []gene, beingMapping [][]string, beingId int) []mapping {
+	var mappings []mapping
+
+	for _, mappingRow := range beingMapping {
+		id1, err1 := strconv.Atoi(mappingRow[0])
+		id2, err2 := strconv.Atoi(mappingRow[1])
+
+		if err1 == nil && err2 == nil {
+			gene1 := containsOrGet(genes, id1)
+			gene2 := containsOrGet(genes, id2)
+
+			if gene1 != nil && gene2 != nil && gene1.being == HUMAN && gene2.being == beingId {
+				mappings = append(mappings, mapping{
+					gene1: *gene1,
+					gene2: *gene2,
+				})
+			}
+		}
+	}
+
+	return mappings
+}
+
+func formatCSV(being []byte, isSynLeth bool) [][]string {
+	beingSplit := strings.Split(string(being), "\n")[1:]
+
+	var beingFormatted [][]string
+	for _, beingInformation := range beingSplit {
+		var tempInformation = strings.Split(beingInformation, ",")
+
+		if len(tempInformation) != 8 && isSynLeth {
+			for i := 0; i < len(tempInformation); i++ {
+				if tempInformation[i][0] == '"' {
+					startSlice := tempInformation[:i]
+					endSlice := tempInformation[(i + len(tempInformation) - 7):]
+
+					concatInformation := tempInformation[i]
+
+					for j := 0; j < len(tempInformation)-8; j++ {
+						concatInformation += "," + tempInformation[i+j+1]
+					}
+
+					tempInformation = append(append(startSlice, concatInformation), endSlice...)
+					break
+				}
+			}
+		}
+
+		beingFormatted = append(beingFormatted, tempInformation)
+	}
+
+	return beingFormatted
+}
+
+func fillGenesAndDependencies(human [][]string, mouse [][]string, yeast [][]string) ([]gene, []dependency) {
 	humanGenes, humanDependencies := fillBeing(human, HUMAN)
 	mouseGenes, mouseDependencies := fillBeing(mouse, MOUSE)
-	wormGenes, wormDependencies := fillBeing(worm, WORM)
+	yeastGenes, yeastDependencies := fillBeing(yeast, YEAST)
 
 	humanGenes = append(humanGenes, mouseGenes...)
 	humanDependencies = append(humanDependencies, mouseDependencies...)
 
-	return append(humanGenes, wormGenes...), append(humanDependencies, wormDependencies...)
+	return append(humanGenes, yeastGenes...), append(humanDependencies, yeastDependencies...)
 }
 
 func fillBeing(being [][]string, beingId int) ([]gene, []dependency) {
@@ -79,7 +159,13 @@ func fillBeing(being [][]string, beingId int) ([]gene, []dependency) {
 	var dependencies []dependency
 
 	for _, result := range being {
-		id1, _ := strconv.Atoi(result[1])
+		id1, err := strconv.Atoi(result[1])
+
+		if err != nil {
+			fmt.Println(result)
+			fmt.Println("Error Id1", err, beingId)
+		}
+
 		gene1 := containsOrGet(genes, id1)
 
 		if gene1 == nil {
@@ -93,7 +179,13 @@ func fillBeing(being [][]string, beingId int) ([]gene, []dependency) {
 			genes = append(genes, *gene1)
 		}
 
-		id2, _ := strconv.Atoi(result[3])
+		id2, err := strconv.Atoi(result[3])
+
+		if err != nil {
+			fmt.Println(result)
+			fmt.Println("Error Id2", err, beingId)
+		}
+
 		gene2 := containsOrGet(genes, id2)
 		if gene2 == nil {
 			gene2 = &gene{
@@ -105,7 +197,12 @@ func fillBeing(being [][]string, beingId int) ([]gene, []dependency) {
 			genes = append(genes, *gene2)
 		}
 
-		score, _ := strconv.ParseFloat(result[7], 32)
+		score, err := strconv.ParseFloat(result[7], 32)
+
+		if err != nil {
+			fmt.Println(result)
+			fmt.Println("Error Score", err, beingId)
+		}
 
 		dependencies = append(dependencies, dependency{
 			gene1: *gene1,
@@ -128,38 +225,48 @@ func containsOrGet(genes []gene, id int) *gene {
 }
 
 func writeBeings() {
-	beingNames := []string{"Human", "Mouse", "Worm"}
-	var beings = "BeingId;Name\n"
+	beingNames := []string{"Human", "Mouse", "Yeast"}
+	var beings = "BeingId,Name\n"
 
 	for i := 0; i < len(beingNames); i++ {
-		beings += fmt.Sprintf("%d;%s\n", i+1, beingNames[i])
+		beings += fmt.Sprintf("%d,%s\n", i+1, beingNames[i])
 	}
 
 	_ = os.WriteFile("../output/Beings.csv", []byte(beings), 0644)
 }
 
 func writeGenes(genes []gene) {
-	var beings = "GeneId;Name;EssentialScore;Being\n"
+	var fileGenes = "GeneId,Name,EssentialScore,Being\n"
 
 	for _, gene := range genes {
 		if gene.essentialScore == nil {
-			beings += fmt.Sprintf("%d;%s;;%d\n", gene.id, gene.name, gene.being)
+			fileGenes += fmt.Sprintf("%d,%s,,%d\n", gene.id, gene.name, gene.being)
 		} else {
-			beings += fmt.Sprintf("%d;%s;%f;%d\n", gene.id, gene.name, *gene.essentialScore, gene.being)
+			fileGenes += fmt.Sprintf("%d,%s,%f,%d\n", gene.id, gene.name, *gene.essentialScore, gene.being)
 		}
 	}
 
-	_ = os.WriteFile("../output/Genes.csv", []byte(beings), 0644)
+	_ = os.WriteFile("../output/Genes.csv", []byte(fileGenes), 0644)
 }
 
 func writeDependencies(dependencies []dependency) {
-	var beings = "Gene1Id;Gene2Id;Score\n"
+	var fileDependencies = "Gene1Id,Gene2Id,Score\n"
 
 	for _, dependency := range dependencies {
-		beings += fmt.Sprintf("%d;%d;%f\n", dependency.gene1.id, dependency.gene2.id, dependency.score)
+		fileDependencies += fmt.Sprintf("%d,%d,%f\n", dependency.gene1.id, dependency.gene2.id, dependency.score)
 	}
 
-	_ = os.WriteFile("../output/Dependencies.csv", []byte(beings), 0644)
+	_ = os.WriteFile("../output/Dependencies.csv", []byte(fileDependencies), 0644)
+}
+
+func writeMappings(mappings []mapping) {
+	var fileMappings = "Gene1Id,Gene2Id\n"
+
+	for _, mapping := range mappings {
+		fileMappings += fmt.Sprintf("%d,%d\n", mapping.gene1.id, mapping.gene2.id)
+	}
+
+	_ = os.WriteFile("../output/Mappings.csv", []byte(fileMappings), 0644)
 }
 
 /*func createTables(db *sql.DB) {
