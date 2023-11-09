@@ -63,6 +63,14 @@ func main() {
 		formatCSV(mouse, true),
 		formatCSV(yeast, true))
 
+	scores, err := os.ReadFile("../data/OGEE/CSEGs_CEGs.txt")
+
+	if err != nil {
+		fmt.Println("Error essential scores", err)
+	}
+
+	addEssentialScore(genes, formatEssentialScores(scores))
+
 	mouseMappings, err := os.ReadFile("../data/oma/mouse-mapping.csv")
 
 	if err != nil {
@@ -110,6 +118,40 @@ func fillBeingMapping(genes []gene, beingMapping [][]string, beingId int) []mapp
 	}
 
 	return mappings
+}
+
+func formatEssentialScores(scores []byte) [][]string {
+	test := string(scores)
+	beingSplit := strings.Split(test, "\n")[12:]
+
+	var beingFormatted [][]string
+
+	for _, beingInformation := range beingSplit {
+		beingFormatted = append(beingFormatted, strings.Split(beingInformation, "\t"))
+	}
+
+	return beingFormatted
+}
+
+func addEssentialScore(genes []gene, essentialScores [][]string) {
+	for _, essentialScore := range essentialScores {
+		geneId := getGeneIdByName(essentialScore[0], genes)
+
+		if geneId != -1 {
+			var score float32
+
+			switch essentialScore[1] {
+			case "CSEGs":
+				score = 0.8
+				break
+			case "CEGs":
+				score = 0.1
+				break
+			}
+
+			genes[geneId].essentialScore = &score
+		}
+	}
 }
 
 func formatCSV(being []byte, isSynLeth bool) [][]string {
@@ -222,6 +264,16 @@ func containsOrGet(genes []gene, id int) *gene {
 	}
 
 	return nil
+}
+
+func getGeneIdByName(name string, genes []gene) int {
+	for i, gene := range genes {
+		if gene.name == name {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func writeBeings() {
