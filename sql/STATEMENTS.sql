@@ -1,5 +1,5 @@
 CREATE OR REPLACE PACKAGE CANCER_Research AS
-    PROCEDURE get_connected_genes(gene NUMBER);
+    PROCEDURE get_connected_genes(geneID NUMBER);
 END CANCER_Research;
 /
 
