@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/godror/godror"
 	"os"
 	"strconv"
 	"strings"
@@ -32,13 +34,22 @@ type mapping struct {
 }
 
 func main() {
-	//connStr := fmt.Sprintf("oracle://SYSTEM:lol@localhost:1521/ORACLE?PREFETCH_ROWS=%d", 500)
+	db, err := sql.Open("godror", "SYSTEM/lol@localhost")
 
-	/*db, _ := sql.Open("oracle", connStr)
-	err := db.Ping()
-	createTables(db)*/
+	if err != nil {
+		fmt.Println("conn str wrong")
+	}
 
-	writeBeings()
+	err = db.Ping()
+
+	if err != nil {
+		fmt.Println("db not working ;(", err)
+	}
+
+	dropTables(db)
+	createTables(db)
+
+	fmt.Println("Reading Files")
 
 	human, err := os.ReadFile("../data/syn-leth/Human_SL.csv")
 
@@ -58,18 +69,11 @@ func main() {
 		fmt.Println("Error Yeast", err)
 	}
 
-	genes, dependencies := fillGenesAndDependencies(
-		formatCSV(human, true),
-		formatCSV(mouse, true),
-		formatCSV(yeast, true))
-
 	scores, err := os.ReadFile("../data/OGEE/CSEGs_CEGs.txt")
 
 	if err != nil {
 		fmt.Println("Error essential scores", err)
 	}
-
-	addEssentialScore(genes, formatEssentialScores(scores))
 
 	mouseMappings, err := os.ReadFile("../data/oma/mouse-mapping.csv")
 
@@ -83,11 +87,31 @@ func main() {
 		fmt.Println("Error Yeast Mapping", err)
 	}
 
+	fmt.Println("Processing genes and dependencies")
+	genes, dependencies := fillGenesAndDependencies(
+		formatCSV(human, true),
+		formatCSV(mouse, true),
+		formatCSV(yeast, true))
+
+	fmt.Println("Adding essential score")
+	addEssentialScore(genes, formatEssentialScores(scores))
+
+	fmt.Println("Processing Mappings")
 	mappings := fillMappings(genes, formatCSV(mouseMappings, false), formatCSV(yeastMappings, false))
 
-	writeGenes(genes)
-	writeDependencies(dependencies)
-	writeMappings(mappings)
+	fmt.Println("Writing data to db")
+
+	fmt.Println("Writing beings to db")
+	writeBeingsToDb(db)
+
+	fmt.Println("Writing genes to db")
+	writeGenesToDb(db, genes)
+
+	fmt.Println("Writing dependencies to db")
+	writeDependenciesToDb(db, dependencies)
+
+	fmt.Println("Writing mappings to db")
+	writeMappingsToDb(db, mappings)
 }
 
 func fillMappings(genes []gene, mouseMappings [][]string, yeastMappings [][]string) []mapping {
@@ -276,75 +300,151 @@ func getGeneIdByName(name string, genes []gene) int {
 	return -1
 }
 
-func writeBeings() {
+func writeBeingsToDb(db *sql.DB) {
 	beingNames := []string{"Human", "Mouse", "Yeast"}
-	var beings = "BeingId,Name\n"
+	insert, err := db.Prepare(`INSERT INTO BEING (being_id,name) VALUES (:1,:2)`)
 
-	for i := 0; i < len(beingNames); i++ {
-		beings += fmt.Sprintf("%d,%s\n", i+1, beingNames[i])
+	if err != nil {
+		fmt.Println("ERROR preparing insert Being", err)
+		return
 	}
 
-	_ = os.WriteFile("../output/Beings.csv", []byte(beings), 0644)
+	defer func(insert *sql.Stmt) {
+		err = insert.Close()
+		if err != nil {
+			fmt.Println("huh")
+		}
+	}(insert)
+
+	for i := 0; i < len(beingNames); i++ {
+		_, err = insert.Exec(i+1, beingNames[i])
+
+		if err != nil {
+			fmt.Println("ERROR inserting into Being", err)
+		}
+	}
 }
 
-func writeGenes(genes []gene) {
-	var fileGenes = "GeneId,Name,EssentialScore,Being\n"
+func writeGenesToDb(db *sql.DB, genes []gene) {
+	insert, err := db.Prepare(`INSERT INTO GENE (gene_id, name, essential_score, being_id) VALUES (:1,:2,:3,:4)`)
+
+	if err != nil {
+		fmt.Println("ERROR preparing insert Gene", err)
+	}
+
+	defer func(insert *sql.Stmt) {
+		err = insert.Close()
+		if err != nil {
+			fmt.Println("huh")
+		}
+	}(insert)
 
 	for _, gene := range genes {
 		if gene.essentialScore == nil {
-			fileGenes += fmt.Sprintf("%d,%s,,%d\n", gene.id, gene.name, gene.being)
+			_, err = insert.Exec(gene.id, gene.name, nil, gene.being)
 		} else {
-			fileGenes += fmt.Sprintf("%d,%s,%f,%d\n", gene.id, gene.name, *gene.essentialScore, gene.being)
+			_, err = insert.Exec(gene.id, gene.name, *gene.essentialScore, gene.being)
+		}
+
+		if err != nil {
+			fmt.Println("ERROR inserting into Gene", err)
 		}
 	}
-
-	_ = os.WriteFile("../output/Genes.csv", []byte(fileGenes), 0644)
 }
 
-func writeDependencies(dependencies []dependency) {
-	var fileDependencies = "Gene1Id,Gene2Id,Score\n"
+func writeDependenciesToDb(db *sql.DB, dependencies []dependency) {
+	insert, err := db.Prepare(`INSERT INTO SYN_LETH (gene1_id, gene2_id, score) VALUES (:1,:2,:3)`)
+
+	if err != nil {
+		fmt.Println("ERROR preparing insert SYN_LETH", err)
+	}
+
+	defer func(insert *sql.Stmt) {
+		err = insert.Close()
+		if err != nil {
+			fmt.Println("huh")
+		}
+	}(insert)
 
 	for _, dependency := range dependencies {
-		fileDependencies += fmt.Sprintf("%d,%d,%f\n", dependency.gene1.id, dependency.gene2.id, dependency.score)
-	}
+		_, err = insert.Exec(dependency.gene1.id, dependency.gene2.id, dependency.score)
 
-	_ = os.WriteFile("../output/Dependencies.csv", []byte(fileDependencies), 0644)
+		if err != nil {
+			fmt.Println("ERROR inserting into SYN_LETH", err)
+		}
+	}
 }
 
-func writeMappings(mappings []mapping) {
-	var fileMappings = "Gene1Id,Gene2Id\n"
+func writeMappingsToDb(db *sql.DB, mappings []mapping) {
+	insert, err := db.Prepare(`INSERT INTO MAPPING (gene1_id, gene2_id) VALUES (:1,:2)`)
+
+	if err != nil {
+		fmt.Println("ERROR preparing insert Mapping", err)
+	}
+
+	defer func(insert *sql.Stmt) {
+		err = insert.Close()
+		if err != nil {
+			fmt.Println("huh")
+		}
+	}(insert)
 
 	for _, mapping := range mappings {
-		fileMappings += fmt.Sprintf("%d,%d\n", mapping.gene1.id, mapping.gene2.id)
-	}
+		_, err = insert.Exec(mapping.gene1.id, mapping.gene2.id)
 
-	_ = os.WriteFile("../output/Mappings.csv", []byte(fileMappings), 0644)
+		if err != nil {
+			fmt.Println("ERROR inserting into Mapping", err, mapping.gene1.id, mapping.gene2.id)
+		}
+	}
 }
 
-/*func createTables(db *sql.DB) {
-	_, _ = db.Exec("CREATE IF NOT EXISTS TABLE BEING(" +
-		"being_id NUMBER(1) PRIMARY KEY NOT NULL," +
-		"name VARCHAR2(5) NOT NULL);")
+func createTables(db *sql.DB) {
+	_, err := db.Exec(`CREATE TABLE BEING(
+    being_id NUMBER(1) PRIMARY KEY NOT NULL,
+    name VARCHAR2(5) NOT NULL)`)
 
-	_, _ = db.Exec("CREATE IF NOT EXISTS TABLE GENE(" +
-		"gene_id NUMBER(10) PRIMARY KEY NOT NULL," +
-		"being_id NUMBER(1) NOT NULL," +
-		"name VARCHAR2(15) NOT NULL," +
-		"essential_score FLOAT(5) NULL," +
-		"CONSTRAINT BEING_GENE_FK FOREIGN KEY (being_id) REFERENCES BEING(being_id));")
+	if err != nil {
+		fmt.Println("Being", err)
+	}
 
-	_, _ = db.Exec("CREATE IF NOT EXISTS TABLE SYN_LETH(" +
-		"gene1_id NUMBER(10) NOT NULL," +
-		"gene2_id NUMBER(10) NOT NULL," +
-		"score FLOAT(5) NOT NULL," +
-		"PRIMARY KEY (gene1_id, gene2_id)," +
-		"CONSTRAINT GENE1_DEP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id)," +
-		"CONSTRAINT GENE2_DEP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id));")
+	_, err = db.Exec(`CREATE TABLE GENE(
+		gene_id NUMBER(10) PRIMARY KEY NOT NULL,
+		being_id NUMBER(1) NOT NULL,
+		name VARCHAR2(15) NOT NULL,
+		essential_score FLOAT(5) NULL, 
+		CONSTRAINT BEING_GENE_FK FOREIGN KEY (being_id) REFERENCES BEING(being_id))`)
 
-	_, _ = db.Exec("CREATE IF NOT EXISTS TABLE Mapping(" +
-		"gene1_id NUMBER(10) NOT NULL," +
-		"gene2_id NUMBER(10) NOT NULL," +
-		"PRIMARY KEY (gene1_id, gene2_id)," +
-		"CONSTRAINT GENE1_MAP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id)," +
-		"CONSTRAINT GENE2_MAP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id));")
-}*/
+	if err != nil {
+		fmt.Println("GENE", err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE SYN_LETH(
+		gene1_id NUMBER(10) NOT NULL,
+		gene2_id NUMBER(10) NOT NULL,
+		score FLOAT(5) NOT NULL,
+		PRIMARY KEY (gene1_id, gene2_id),
+		CONSTRAINT GENE1_DEP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
+		CONSTRAINT GENE2_DEP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id))`)
+
+	if err != nil {
+		fmt.Println("SYN_LETH", err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE Mapping(
+		gene1_id NUMBER(10) NOT NULL,
+		gene2_id NUMBER(10) NOT NULL,
+		PRIMARY KEY (gene1_id, gene2_id),
+		CONSTRAINT GENE1_MAP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
+		CONSTRAINT GENE2_MAP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id))`)
+
+	if err != nil {
+		fmt.Println("Mapping", err)
+	}
+}
+
+func dropTables(db *sql.DB) {
+	_, _ = db.Exec(`DROP TABLE MAPPING`)
+	_, _ = db.Exec(`DROP TABLE SYN_LETH`)
+	_, _ = db.Exec(`DROP TABLE GENE`)
+	_, _ = db.Exec(`DROP TABLE BEING`)
+}
