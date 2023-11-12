@@ -99,18 +99,18 @@ func main() {
 	fmt.Println("Processing Mappings")
 	mappings := fillMappings(genes, formatCSV(mouseMappings, false), formatCSV(yeastMappings, false))
 
-	fmt.Println("Writing data to db")
+	fmt.Println("Writing data to db (0/4)")
 
-	fmt.Println("Writing beings to db")
+	fmt.Println("Writing beings to db (1/4)")
 	writeBeingsToDb(db)
 
-	fmt.Println("Writing genes to db")
+	fmt.Println("Writing genes to db (2/4)")
 	writeGenesToDb(db, genes)
 
-	fmt.Println("Writing dependencies to db")
+	fmt.Println("Writing dependencies to db (3/4)")
 	writeDependenciesToDb(db, dependencies)
 
-	fmt.Println("Writing mappings to db")
+	fmt.Println("Writing mappings to db (4/4)")
 	writeMappingsToDb(db, mappings)
 }
 
