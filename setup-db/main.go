@@ -390,11 +390,7 @@ func writeMappingsToDb(db *sql.DB, mappings []mapping) {
 	}(insert)
 
 	for _, mapping := range mappings {
-		_, err = insert.Exec(mapping.gene1.id, mapping.gene2.id)
-
-		if err != nil {
-			fmt.Println("ERROR inserting into Mapping", err, mapping.gene1.id, mapping.gene2.id)
-		}
+		_, _ = insert.Exec(mapping.gene1.id, mapping.gene2.id)
 	}
 }
 
