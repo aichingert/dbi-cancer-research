@@ -31,42 +31,42 @@ impl AppState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Lethal {
-    pub gene: Gene,
-    pub score: f32,
+#[derive(Serialize, Deserialize)]
+pub struct LethalGenes {
+    pub request_gene: Gene,
+    pub human_genes: Vec<Lethal>,
+    pub mouse_genes: Vec<Lethal>,
+    pub yeast_genes: Vec<Lethal>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
+pub struct Lethal {
+    gene: Gene,
+    lethality_score: f32,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Gene {
-    pub id: i64,
-    pub being: i64,
-    pub name: String,
-    pub score: Option<f32>,
+    id: i64,
+    being: i64,
+    name: String,
+    essentiality_score: Option<f32>,
 }
 
 impl Gene {
-    pub fn new(ident: &str, connection: &Connection) -> Result<Self, oracle::Error> {
-        let row = connection.query_row(GENE_FROM_IDENT_SQL, &[&ident])?;
+    pub fn new(ident: &str, sql: Option<(SQL, i64)>, conn: &Connection) -> Result<Self, oracle::Error> {
+        let row = if let Some((sql, param)) = sql {
+            conn.query_row(sql, &[&param])?
+        } else {
+            conn.query_row(GENE_FROM_IDENT_SQL, &[&ident])?
+        };
 
         Ok(Self {
             id: row.get("gene_id").unwrap(),
             name: row.get("name").unwrap(),
             being: row.get("being_id").unwrap(),
-            score: row.get("essential_score").unwrap(),
+            essentiality_score: row.get("essential_score").unwrap(),
         })
-    }
-
-    pub fn new_from_id(id: i64, connection: &Connection) -> Result<Self, oracle::Error> {
-        let row = connection.query_row(GENE_FROM_ID_SQL, &[&id])?;
-
-        Ok(Self {
-            id: row.get("gene_id").unwrap(),
-            name: row.get("name").unwrap(),
-            being: row.get("being_id").unwrap(),
-            score: row.get("essential_score").unwrap(),
-        })
-
     }
 
     pub fn is_lethal_for(&self, connection: &Connection) -> Result<Vec<Lethal>, oracle::Error> {
@@ -82,27 +82,27 @@ impl Gene {
             }
 
             let id = self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?);
-            let gene = Gene::new_from_id(id, connection)?;
+            let gene = Gene::new("", Some((GENE_FROM_ID_SQL, id)), connection)?;
 
             lethal_genes.push(Lethal {
                 gene,
-                score: lethality,
+                lethality_score: lethality,
             });
         }
 
         Ok(lethal_genes)
     }
 
-    pub fn map_to_being(&self, being: i64, con: &Connection) -> Result<Vec<Gene>, oracle::Error> {
-        let results = con.query(GENES_MAPPING_SQL, &[&self.id])?;
+    pub fn map_to_being(&self, being: i64, conn: &Connection) -> Result<Vec<Gene>, oracle::Error> {
+        let results = conn.query(GENES_MAPPING_SQL, &[&self.id])?;
         let mut mapped_genes = Vec::new();
 
         for row_result in results {
             let row = row_result?;
 
-            let gene = Gene::new_from_id(
-                self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?),
-                con
+            let gene = Gene::new("",
+                Some((GENE_FROM_ID_SQL, self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?))),
+                conn
             )?;
 
             if gene.being != being {

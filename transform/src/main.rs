@@ -8,7 +8,7 @@ use axum::{
 };
 
 mod models;
-use models::{AppState, Gene};
+use models::{AppState, Gene, LethalGenes};
 
 async fn get_lethality(
     Path(ident): Path<String>,
@@ -22,20 +22,19 @@ async fn get_lethality(
         }
     };
 
-    let gene = match Gene::new(&ident.to_uppercase(), &connection) {
+    let gene = match Gene::new(&ident.to_uppercase(), None, &connection) {
         Ok(gene) => gene,
         Err(_) => return (StatusCode::BAD_REQUEST, Json(None))
     };
 
     let lethal_for_human_tests = gene.is_lethal_for(&connection).unwrap();
 
-    let rats = Gene::filter(&gene.map_to_being(2, &connection).unwrap(), &connection);
-    let yeast = Gene::filter(&gene.map_to_being(3, &connection).unwrap(), &connection);
-
-    println!("{:?}", rats);
-    println!("{:?}", yeast);
-
-    (StatusCode::OK, Json(Some(lethal_for_human_tests)))
+    (StatusCode::OK, Json(Some(LethalGenes {
+        human_genes: lethal_for_human_tests,
+        mouse_genes: Gene::filter(&gene.map_to_being(2, &connection).unwrap(), &connection),
+        yeast_genes: Gene::filter(&gene.map_to_being(3, &connection).unwrap(), &connection),
+        request_gene: gene,
+    })))
 }
 
 #[tokio::main]
