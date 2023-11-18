@@ -1,9 +1,14 @@
 use std::sync::Arc;
 use oracle::Connection;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
-const GENE_SQL: &'static str = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE name = :1";
-const GENE_LETHALITY: &'static str = "SELECT GENE1_ID, GENE2_ID, SCORE FROM SYN_LETH WHERE GENE1_ID = :1 OR GENE2_ID = :1";
+type SQL = &'static str;
+
+const GENE_FROM_IDENT_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE name = :1";
+const GENE_FROM_ID_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE gene_id = :1";
+
+const GENE_LETHALITY_SQL: SQL = "SELECT GENE1_ID, GENE2_ID, SCORE FROM SYN_LETH WHERE GENE1_ID = :1 OR GENE2_ID = :1";
+const GENES_MAPPING_SQL: SQL = "SELECT GENE1_ID, GENE2_ID FROM MAPPING WHERE GENE1_ID = :1 OR GENE2_ID = :1";
 
 #[derive(Clone)]
 pub struct AppState {
@@ -26,17 +31,23 @@ impl AppState {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Lethal {
+    pub gene: Gene,
+    pub score: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Gene {
     pub id: i64,
+    pub being: i64,
     pub name: String,
-    pub being: String,
     pub score: Option<f32>,
 }
 
 impl Gene {
     pub fn new(ident: &str, connection: &Connection) -> Result<Self, oracle::Error> {
-        let row = connection.query_row(GENE_SQL, &[&ident])?;
+        let row = connection.query_row(GENE_FROM_IDENT_SQL, &[&ident])?;
 
         Ok(Self {
             id: row.get("gene_id").unwrap(),
@@ -46,11 +57,85 @@ impl Gene {
         })
     }
 
-    pub fn is_lethal(&self, connection: &Connection) -> Result<String, oracle::Error> {
-        let results = connection.query(GENE_LETHALITY, &[&self.id])?;
+    pub fn new_from_id(id: i64, connection: &Connection) -> Result<Self, oracle::Error> {
+        let row = connection.query_row(GENE_FROM_ID_SQL, &[&id])?;
 
+        Ok(Self {
+            id: row.get("gene_id").unwrap(),
+            name: row.get("name").unwrap(),
+            being: row.get("being_id").unwrap(),
+            score: row.get("essential_score").unwrap(),
+        })
 
+    }
 
-        Ok(String::new())
+    pub fn is_lethal_for(&self, connection: &Connection) -> Result<Vec<Lethal>, oracle::Error> {
+        let results = connection.query(GENE_LETHALITY_SQL, &[&self.id])?;
+        let mut lethal_genes = Vec::new();
+
+        for row_res in results {
+            let row = row_res?;
+            let lethality: f32 = row.get("score")?;
+ 
+            if lethality < 0.65 {
+                continue;
+            }
+
+            let id = self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?);
+            let gene = Gene::new_from_id(id, connection)?;
+
+            lethal_genes.push(Lethal {
+                gene,
+                score: lethality,
+            });
+        }
+
+        Ok(lethal_genes)
+    }
+
+    pub fn map_to_being(&self, being: i64, con: &Connection) -> Result<Vec<Gene>, oracle::Error> {
+        let results = con.query(GENES_MAPPING_SQL, &[&self.id])?;
+        let mut mapped_genes = Vec::new();
+
+        for row_result in results {
+            let row = row_result?;
+
+            let gene = Gene::new_from_id(
+                self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?),
+                con
+            )?;
+
+            if gene.being != being {
+                continue;
+            }
+
+            mapped_genes.push(gene);
+        }
+
+        Ok(mapped_genes)
+    }
+
+    pub fn filter(genes: &Vec<Gene>, connection: &Connection) -> Vec<Lethal> {
+        let mut lethal = Vec::new();
+
+        for gene in genes {
+            let lethal_genes = gene.is_lethal_for(connection).unwrap();
+
+            for lethal_gene in lethal_genes {
+                if lethal_gene.gene.map_to_being(1, connection).unwrap().len() > 0 {
+                    lethal.push(lethal_gene);
+                }
+            }
+        }
+
+        lethal
+    }
+
+    fn get_other_id(&self, gene1_id: i64, gene2_id: i64) -> i64 {
+        if self.id == gene1_id {
+            gene2_id
+        } else {
+            gene1_id
+        }
     }
 }
