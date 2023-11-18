@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 repo="dbi-cancer-research"
 
 pushd "visualize"
@@ -12,14 +14,10 @@ pushd "visualize"
 	ls -lha ../../dist
 popd
 
-ls -lha
-
-ls -lha "../dist"
-
 pushd "../dist"
-	js=$(ls | grep front*\.js)
-	wasm=$(ls | grep front*\.wasm)
-	cp "../$repo/visualize/index.html cp.html"
+	js=$(ls | grep visu*\.js)
+	wasm=$(ls | grep visu*\.wasm)
+	cp "../$repo/visualize/index.html" "cp.html"
 
 	echo $(cat cp.html | 
 		sed -e "s/<link data-trunk rel=\"rust\" data-wasm-opt=\"z\"\/>/<script type=\"module\">import init from '.\/$js';init('$wasm');<\/script>/g") > index.html
@@ -30,10 +28,6 @@ popd
 
 git switch gh-pages
 
-rm -rf fron*
-rm -rf inde*
-
 mv ../dist .
 mv dist/* .
 rm -rf dist
-
