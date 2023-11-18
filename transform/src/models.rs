@@ -7,7 +7,7 @@ type SQL = &'static str;
 const GENE_FROM_IDENT_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE name = :1";
 const GENE_FROM_ID_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE gene_id = :1";
 
-const GENE_LETHALITY_SQL: SQL = "SELECT GENE1_ID, GENE2_ID, SCORE FROM SYN_LETH WHERE GENE1_ID = :1 OR GENE2_ID = :1";
+const GENE_LETHALITY_SQL: SQL = "SELECT GENE1_ID, GENE2_ID, SCORE FROM SYN_LETH WHERE GENE1_ID = :1 OR GENE2_ID = :1 ORDER BY SCORE DESC";
 const GENES_MAPPING_SQL: SQL = "SELECT GENE1_ID, GENE2_ID FROM MAPPING WHERE GENE1_ID = :1 OR GENE2_ID = :1";
 
 #[derive(Clone)]
@@ -75,18 +75,13 @@ impl Gene {
 
         for row_res in results {
             let row = row_res?;
-            let lethality: f32 = row.get("score")?;
- 
-            if lethality < 0.65 {
-                continue;
-            }
 
             let id = self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?);
             let gene = Gene::new("", Some((GENE_FROM_ID_SQL, id)), connection)?;
 
             lethal_genes.push(Lethal {
                 gene,
-                lethality_score: lethality,
+                lethality_score: row.get("score")?,
             });
         }
 
