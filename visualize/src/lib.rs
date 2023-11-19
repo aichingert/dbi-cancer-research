@@ -27,7 +27,7 @@ pub struct Gene {
     essentiality_score: Option<f32>,
 }
 
-async fn fetch_lethal_genes<T>(gene_ident: String) -> Option<T> 
+async fn fetch_lethal_genes<T>(gene_ident: String) -> Option<T>
 where
     T: Serializable + std::fmt::Debug,
 {
@@ -56,7 +56,7 @@ pub fn App() -> impl IntoView {
     };
 
     let lethal_genes = create_resource(
-        move || (get_gene()), 
+        move || (get_gene()),
         move |gene| async move {
             fetch_lethal_genes::<LethalGenes>(gene).await
         }
@@ -96,22 +96,16 @@ pub fn App() -> impl IntoView {
                     Some(Some(genes)) => {
                         let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
 
-                        let pred = |g: &Lethal| -> f32 { 
-                            g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
+                        let pred = |g: &Lethal| -> f32 {
+                            g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
                         };
-                        
-                        let lethality_score = 
-                            genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
-                            + genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
-                            + genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
 
-                        let mut lethality_divider = 0.0;
+                        let lethality_score =
+                            genes.yeast_genes.iter().map(pred).sum::<f32>()
+                            + genes.human_genes.iter().map(pred).sum::<f32>()
+                            + genes.mouse_genes.iter().map(pred).sum::<f32>();
 
-                        if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
-                        if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
-                        if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
-
-                        score += (1. - score) * lethality_score / lethality_divider;
+                        score += (1. - score) * lethality_score;
 
                         Some(view! {
                             <div>
@@ -140,7 +134,7 @@ pub fn Gene(gene: Gene) -> impl IntoView {
             <p>id: {gene.id} </p>
             <p>name: {gene.name} </p>
             <p>being: {BEINGS[gene.being - 1]} </p>
-            <p>essentiality: 
+            <p>essentiality:
             {move || if let Some(essentiality_score) = gene.essentiality_score {
                     essentiality_score.to_string()
                 } else {

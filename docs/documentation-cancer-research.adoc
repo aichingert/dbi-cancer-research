@@ -1,11 +1,6 @@
 = documentation-cancer-research
 
-== Short explanation
-
-[plantuml]
---
-include::plantuml/cancer.puml[]
---
+image::img/cld.png[]
 
 == Data used:
 
@@ -92,10 +87,11 @@ func addEssentialScore(genes []gene, essentialScores [][]string) {
 
 == Transform
 
-Rest schnittstelle Get request
+Rest interface:
 
-Find genes to the Human gene schaun, ob de synlet von de viecha human genes hobm
+Get requests give us the Genes
 
+Our goal is to find genes equivalent to the human gene and to check whether the animals' synthetic lethal gene has a human gene. if that is the case, we will return it
 == Scooring
 
 [source,rs]
@@ -119,3 +115,9 @@ if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
 
 score += (1. - score) * lethality_score / lethality_divider;
 --
+
+== Visualize
+
+An example:
+
+image::img/visualize.png[]
