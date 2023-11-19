@@ -31,3 +31,11 @@ git switch gh-pages
 mv ../dist .
 mv dist/* .
 rm -rf dist
+
+git add .
+git commit -m "feat: deploying to gh-pages with cicd"
+
+git --set-upstream origin gh-pages
+git push
+
+git switch main
