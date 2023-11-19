@@ -2,6 +2,8 @@
 
 == Short explanation
 
+
+
 [plantuml]
 --
 include::docs/plantuml/cancer.puml[]
@@ -13,9 +15,13 @@ include::docs/plantuml/cancer.puml[]
 - Mouse
 - Yeast
 
+
+
+We use OMA to map the Types
+
 [source]
 --
-OMA DB
+
 
 OGEE: Online GEne Essential database v3.09
 
@@ -28,7 +34,7 @@ CSEGs - Genes tested in more than 10 cell lines and essential in only one partic
 CEGs - Genes essential in 80% or more tested cell lines.
 --
 
-=== Prepare Data:
+=== Parse Data:
 
 We prepare our Data with GO
 
@@ -87,3 +93,11 @@ func addEssentialScore(genes []gene, essentialScores [][]string) {
 		}
 	}
 --
+
+== Transform
+
+Rest schnittstelle
+Get request
+
+Find genes to the Human gene
+schaun, ob de synlet von de viecha human genes hobm
