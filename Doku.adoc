@@ -1,0 +1,26 @@
+= Doku Cancer-Research
+
+==
+
+== Data used:
+- Human
+- Mouse
+- Yeast
+
+[source]
+--
+OMA DB
+
+OGEE: Online GEne Essential database v3.09
+
+Short forms used:
+CSEGs	Cancer-specific essential genes
+CEGs	Core-essential genes
+
+Criteria used for classifying CSEGs and CEGs:
+CSEGs - Genes tested in more than 10 cell lines and essential in only one particular cancer.
+CEGs - Genes essential in 80% or more tested cell lines.
+--
+
+
+==
