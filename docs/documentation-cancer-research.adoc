@@ -1,8 +1,6 @@
-= Doku Cancer-Research
+= documentation-cancer-research
 
 == Short explanation
-
-
 
 [plantuml]
 --
@@ -15,11 +13,9 @@ include::plantuml/cancer.puml[]
 - Mouse
 - Yeast
 
+We use OMA to map the Types for different Species
 
-
-We use OMA to map the Types for different
-
-image::images/img.png[]
+image::img/oma.png[]
 
 [source]
 --
@@ -70,7 +66,6 @@ type mapping struct {
 }
 --
 
-
 [source,go]
 --
 func addEssentialScore(genes []gene, essentialScores [][]string) {
@@ -92,37 +87,35 @@ func addEssentialScore(genes []gene, essentialScores [][]string) {
 			genes[geneId].essentialScore = &score
 		}
 	}
+}
 --
 
 == Transform
 
-Rest schnittstelle
-Get request
+Rest schnittstelle Get request
 
-Find genes to the Human gene
-schaun, ob de synlet von de viecha human genes hobm
-
+Find genes to the Human gene schaun, ob de synlet von de viecha human genes hobm
 
 == Scooring
 
-[source, rs]
+[source,rs]
 --
 let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
 
-                        let pred = |g: &Lethal| -> f32 {
-                            g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
-                        };
+let pred = |g: &Lethal| -> f32 {
+g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
+};
 
-                        let lethality_score =
-                            genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
-                            + genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
-                            + genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
+let lethality_score =
+genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
++ genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
++ genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
 
-                        let mut lethality_divider = 0.0;
+let mut lethality_divider = 0.0;
 
-                        if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
-                        if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
-                        if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
+if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
+if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
+if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
 
-                        score += (1. - score) * lethality_score / lethality_divider;
+score += (1. - score) * lethality_score / lethality_divider;
 --
