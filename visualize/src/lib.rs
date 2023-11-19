@@ -71,7 +71,6 @@ pub fn App() -> impl IntoView {
 
             if !gene_ident.is_empty() {
                 set_gene.update(|gene| *gene = gene_ident);
-                input.set_value("");
             }
         }
     };
@@ -95,9 +94,29 @@ pub fn App() -> impl IntoView {
                     None => None,
                     Some(None) => Some(view! { <p> "No gene found" </p> }.into_any()),
                     Some(Some(genes)) => {
+                        let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
+
+                        let pred = |g: &Lethal| -> f32 { 
+                            g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
+                        };
+                        
+                        let lethality_score = 
+                            genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
+                            + genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
+                            + genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
+
+                        let mut lethality_divider = 0.0;
+
+                        if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
+                        if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
+                        if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
+
+                        score += (1. - score) * lethality_score / lethality_divider;
+
                         Some(view! {
                             <div>
                                 <h2>Checking Gene: </h2>
+                                <h3>Lethality: {score}</h3>
                                 <Gene gene=genes.request_gene.clone() />
                                 <div class="row">
                                     <LethalGeneList lethal_genes=genes.human_genes.clone() />
