@@ -8,9 +8,13 @@ image::img/cld.png[]
 - Mouse
 - Yeast
 
-We use OMA to map the Types for different Species
+We use OMA to map the Types for different species,
 
 image::img/oma.png[]
+
+and Syn-let to get the (BioGrid data) synthetic lethal genes
+
+image::img/synlet.png[]
 
 [source]
 --
@@ -25,7 +29,7 @@ CSEGs - Genes tested in more than 10 cell lines and essential in only one partic
 CEGs - Genes essential in 80% or more tested cell lines.
 --
 
-=== Parse Data:
+== Parse Data:
 
 We prepare our Data with GO
 
@@ -61,30 +65,6 @@ type mapping struct {
 }
 --
 
-[source,go]
---
-func addEssentialScore(genes []gene, essentialScores [][]string) {
-	for _, essentialScore := range essentialScores {
-		geneId := getGeneIdByName(essentialScore[0], genes)
-
-		if geneId != -1 {
-			var score float32
-
-			switch essentialScore[1] {
-			case "CSEGs":
-				score = 0.8
-				break
-			case "CEGs":
-				score = 0.1
-				break
-			}
-
-			genes[geneId].essentialScore = &score
-		}
-	}
-}
---
-
 == Transform
 
 Rest interface:
@@ -92,32 +72,26 @@ Rest interface:
 Get requests give us the Genes
 
 Our goal is to find genes equivalent to the human gene and to check whether the animals' synthetic lethal gene has a human gene. if that is the case, we will return it
-== Scooring
 
+== Visualize
+
+=== Scooring
 [source,rs]
 --
 let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
 
-let pred = |g: &Lethal| -> f32 {
-g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
-};
+                        let pred = |g: &Lethal| -> f32 {
+                            g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
+                        };
 
-let lethality_score =
-genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
-+ genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
-+ genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
+                        let lethality_score =
+                            genes.yeast_genes.iter().map(pred).sum::<f32>()
+                            + genes.human_genes.iter().map(pred).sum::<f32>()
+                            + genes.mouse_genes.iter().map(pred).sum::<f32>();
 
-let mut lethality_divider = 0.0;
-
-if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
-if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
-if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
-
-score += (1. - score) * lethality_score / lethality_divider;
+                        score += (1. - score) * lethality_score;
 --
 
-== Visualize
-
-An example:
+An example for the use of our Website:
 
 image::img/visualize.png[]
