@@ -17,12 +17,13 @@ include::docs/plantuml/cancer.puml[]
 
 
 
-We use OMA to map the Types
+We use OMA to map the Types for different
+
+image::images/img.png[]
+
 
 [source]
 --
-
-
 OGEE: Online GEne Essential database v3.09
 
 Short forms used:
@@ -101,3 +102,28 @@ Get request
 
 Find genes to the Human gene
 schaun, ob de synlet von de viecha human genes hobm
+
+
+== Scooring
+
+[source, rs]
+--
+let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
+
+                        let pred = |g: &Lethal| -> f32 {
+                            g.lethality_score + g.gene.essentiality_score.unwrap_or_default()
+                        };
+
+                        let lethality_score =
+                            genes.yeast_genes.iter().map(pred).sum::<f32>() * 0.2
+                            + genes.human_genes.iter().map(pred).sum::<f32>() * 0.1
+                            + genes.mouse_genes.iter().map(pred).sum::<f32>() * 0.7;
+
+                        let mut lethality_divider = 0.0;
+
+                        if genes.yeast_genes.len() > 0 { lethality_divider += 0.2; }
+                        if genes.mouse_genes.len() > 0 { lethality_divider += 0.7; }
+                        if genes.human_genes.len() > 0 { lethality_divider += 0.1; }
+
+                        score += (1. - score) * lethality_score / lethality_divider;
+--
