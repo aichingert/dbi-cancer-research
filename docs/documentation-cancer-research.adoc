@@ -4,6 +4,8 @@ image::img/cld.png[]
 
 == Data used:
 
+We used Genes from
+
 - Human
 - Mouse
 - Yeast
@@ -65,7 +67,7 @@ type mapping struct {
 }
 --
 
-== Transform
+== Transform/API
 
 Rest interface:
 
@@ -75,7 +77,7 @@ Our goal is to find genes equivalent to the human gene and to check whether the 
 
 == Visualize
 
-=== Scooring
+=== Scoring
 [source,rs]
 --
 let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
