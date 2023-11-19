@@ -1,8 +1,14 @@
 = Doku Cancer-Research
 
-==
+== Short explanation
+
+[plantuml]
+--
+include::docs/plantuml/cancer.puml[]
+--
 
 == Data used:
+
 - Human
 - Mouse
 - Yeast
@@ -22,5 +28,62 @@ CSEGs - Genes tested in more than 10 cell lines and essential in only one partic
 CEGs - Genes essential in 80% or more tested cell lines.
 --
 
+=== Prepare Data:
 
-==
+We prepare our Data with GO
+
+[source]
+--
+parsing/setup-db/main.go
+--
+
+[source,go]
+--
+const (
+	HUMAN = 1
+	MOUSE = 2
+	YEAST = 3
+)
+
+type gene struct {
+	id             int
+	name           string
+	essentialScore *float32
+	being          int
+}
+
+type dependency struct {
+	gene1 gene
+	gene2 gene
+	score float32
+}
+
+type mapping struct {
+	gene1 gene
+	gene2 gene
+}
+--
+
+
+[source,go]
+--
+func addEssentialScore(genes []gene, essentialScores [][]string) {
+	for _, essentialScore := range essentialScores {
+		geneId := getGeneIdByName(essentialScore[0], genes)
+
+		if geneId != -1 {
+			var score float32
+
+			switch essentialScore[1] {
+			case "CSEGs":
+				score = 0.8
+				break
+			case "CEGs":
+				score = 0.1
+				break
+			}
+
+			genes[geneId].essentialScore = &score
+		}
+	}
+--
