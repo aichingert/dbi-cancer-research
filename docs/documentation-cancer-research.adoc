@@ -6,7 +6,7 @@
 
 [plantuml]
 --
-include::docs/plantuml/cancer.puml[]
+include::plantuml/cancer.puml[]
 --
 
 == Data used:
@@ -20,7 +20,6 @@ include::docs/plantuml/cancer.puml[]
 We use OMA to map the Types for different
 
 image::images/img.png[]
-
 
 [source]
 --
