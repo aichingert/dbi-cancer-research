@@ -78,20 +78,21 @@ Our goal is to find genes equivalent to the human gene and to check whether the 
 == Visualize
 
 === Scoring
+
 [source,rs]
 --
 let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
 
-                        let pred = |g: &Lethal| -> f32 {
-                            g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
-                        };
+let pred = |g: &Lethal| -> f32 {
+    g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
+};
 
-                        let lethality_score =
-                            genes.yeast_genes.iter().map(pred).sum::<f32>()
-                            + genes.human_genes.iter().map(pred).sum::<f32>()
-                            + genes.mouse_genes.iter().map(pred).sum::<f32>();
+let lethality_score =
+    genes.yeast_genes.iter().map(pred).sum::<f32>()
+    + genes.human_genes.iter().map(pred).sum::<f32>()
+    + genes.mouse_genes.iter().map(pred).sum::<f32>();
 
-                        score += (1. - score) * lethality_score;
+score += (1. - score) * lethality_score;
 --
 
 An example for the use of our Website:
