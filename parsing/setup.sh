@@ -1,1 +1,0 @@
-(cd setup-db && ./setup-db)

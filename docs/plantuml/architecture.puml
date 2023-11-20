@@ -1,0 +1,18 @@
+@startuml
+package Data {
+    [SynLeth]
+    [OMA]
+    [OGEE]
+}
+
+node Parser
+node Transform
+node Visualize
+database "Oracle"
+
+Data --> "Parser"
+Parser --> "Oracle"
+Oracle <-l-> "Transform"
+Transform <--> Visualize : get request with gene name
+
+@enduml
