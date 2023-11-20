@@ -13,7 +13,7 @@ This project is giving specialists the ability to quickly get a lethality score 
 
 == Team members
 
-* Ilming Winnie (parser)
+* Ilming Winnie (parser, deployed on private server)
 * Tobias Aichinger (transform, visualize)
 * Nikolaus Alexander (Documentation)
 * Breinesberger Markus (Documentation)
@@ -92,12 +92,25 @@ What it looks like:
 
 image::img/visualize.png[]
 
-== How to run the project
+== How to run the project local
 
-This setup was tested on arch linux (for ubuntu or other linux distributions it should also work)
+This setup was tested on arch linux (but it should also work for other linux distributions like ubuntu)
 
 * Dependencies
 ** go (version. go1.20.11)
-** rust (version. cargo 1.73.0)
+** rust (version. cargo 1.73.0/nightly toolchain)
+*** trunk (cargo install trunk)
 ** oracle-instant-client
 ** docker
+
+after installing these things you should be able to run the start.sh file in the root of the project
+
+[source,shell]
+----
+
+chmod +x start.sh
+./start.sh
+
+----
+
+
