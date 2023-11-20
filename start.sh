@@ -6,12 +6,10 @@ if test ! -d $DIR; then
 	mkdir $DIR
 	chmod -R o+w $DIR
 
-	docker run -d --name oradb \
-  -p 1521:1521 \
-  -e ORACLE_PWD=lol \
-  -e ORACLE_CHARACTERSET=AL32UTF8 \
-  -v $DIR:/opt/oracle/oradata \
-  container-registry.oracle.com/database/free:latest
+	docker run -d --name postgresdb \
+  -p 5432:5432 \
+  -e POSTGRES_PASSWORD=lol \
+  postgres
 fi
 
 pushd parsing/setup-db
@@ -20,14 +18,14 @@ go run .
 
 popd
 
-pushd transform
-
-cargo r -r &
-
-popd
-
-pushd visualize
-
-trunk serve --open
-
-popd
+#pushd transform
+#
+#cargo r -r &
+#
+#popd
+#
+#pushd visualize
+#
+#trunk serve --open
+#
+#popd

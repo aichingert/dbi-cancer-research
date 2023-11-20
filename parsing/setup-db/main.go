@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/godror/godror"
+	_ "github.com/lib/pq"
 	"os"
 	"strconv"
 	"strings"
@@ -34,7 +34,8 @@ type mapping struct {
 }
 
 func main() {
-	db, err := sql.Open("godror", "SYSTEM/lol@localhost")
+	connStr := "postgresql://postgres:lol@localhost/?sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
 
 	if err != nil {
 		fmt.Println("conn str wrong")
@@ -44,6 +45,7 @@ func main() {
 
 	if err != nil {
 		fmt.Println("db not working ;(", err)
+		return
 	}
 
 	dropTables(db)
@@ -302,7 +304,7 @@ func getGeneIdByName(name string, genes []gene) int {
 
 func writeBeingsToDb(db *sql.DB) {
 	beingNames := []string{"Human", "Mouse", "Yeast"}
-	insert, err := db.Prepare(`INSERT INTO BEING (being_id,name) VALUES (:1,:2)`)
+	insert, err := db.Prepare(`INSERT INTO BEING (being_id,name) VALUES ($1,$2)`)
 
 	if err != nil {
 		fmt.Println("ERROR preparing insert Being", err)
@@ -326,7 +328,7 @@ func writeBeingsToDb(db *sql.DB) {
 }
 
 func writeGenesToDb(db *sql.DB, genes []gene) {
-	insert, err := db.Prepare(`INSERT INTO GENE (gene_id, name, essential_score, being_id) VALUES (:1,:2,:3,:4)`)
+	insert, err := db.Prepare(`INSERT INTO GENE (gene_id, name, essential_score, being_id) VALUES ($1,$2,$3,$4)`)
 
 	if err != nil {
 		fmt.Println("ERROR preparing insert Gene", err)
@@ -353,7 +355,7 @@ func writeGenesToDb(db *sql.DB, genes []gene) {
 }
 
 func writeDependenciesToDb(db *sql.DB, dependencies []dependency) {
-	insert, err := db.Prepare(`INSERT INTO SYN_LETH (gene1_id, gene2_id, score) VALUES (:1,:2,:3)`)
+	insert, err := db.Prepare(`INSERT INTO SYN_LETH (gene1_id, gene2_id, score) VALUES ($1,$2,$3)`)
 
 	if err != nil {
 		fmt.Println("ERROR preparing insert SYN_LETH", err)
@@ -376,7 +378,7 @@ func writeDependenciesToDb(db *sql.DB, dependencies []dependency) {
 }
 
 func writeMappingsToDb(db *sql.DB, mappings []mapping) {
-	insert, err := db.Prepare(`INSERT INTO MAPPING (gene1_id, gene2_id) VALUES (:1,:2)`)
+	insert, err := db.Prepare(`INSERT INTO MAPPING (gene1_id, gene2_id) VALUES ($1,$2)`)
 
 	if err != nil {
 		fmt.Println("ERROR preparing insert Mapping", err)
@@ -396,17 +398,17 @@ func writeMappingsToDb(db *sql.DB, mappings []mapping) {
 
 func createTables(db *sql.DB) {
 	_, err := db.Exec(`CREATE TABLE BEING(
-    being_id NUMBER(1) PRIMARY KEY NOT NULL,
-    name VARCHAR2(5) NOT NULL)`)
+    being_id NUMERIC(1) PRIMARY KEY NOT NULL,
+    name VARCHAR(5) NOT NULL)`)
 
 	if err != nil {
 		fmt.Println("Being", err)
 	}
 
 	_, err = db.Exec(`CREATE TABLE GENE(
-		gene_id NUMBER(10) PRIMARY KEY NOT NULL,
-		being_id NUMBER(1) NOT NULL,
-		name VARCHAR2(15) NOT NULL,
+		gene_id NUMERIC(10) PRIMARY KEY NOT NULL,
+		being_id NUMERIC(1) NOT NULL,
+		name VARCHAR(15) NOT NULL,
 		essential_score FLOAT(5) NULL, 
 		CONSTRAINT BEING_GENE_FK FOREIGN KEY (being_id) REFERENCES BEING(being_id))`)
 
@@ -415,8 +417,8 @@ func createTables(db *sql.DB) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE SYN_LETH(
-		gene1_id NUMBER(10) NOT NULL,
-		gene2_id NUMBER(10) NOT NULL,
+		gene1_id NUMERIC(10) NOT NULL,
+		gene2_id NUMERIC(10) NOT NULL,
 		score FLOAT(5) NOT NULL,
 		PRIMARY KEY (gene1_id, gene2_id),
 		CONSTRAINT GENE1_DEP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
@@ -427,8 +429,8 @@ func createTables(db *sql.DB) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE Mapping(
-		gene1_id NUMBER(10) NOT NULL,
-		gene2_id NUMBER(10) NOT NULL,
+		gene1_id NUMERIC(10) NOT NULL,
+		gene2_id NUMERIC(10) NOT NULL,
 		PRIMARY KEY (gene1_id, gene2_id),
 		CONSTRAINT GENE1_MAP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
 		CONSTRAINT GENE2_MAP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id))`)
