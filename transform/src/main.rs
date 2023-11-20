@@ -1,49 +1,65 @@
 use axum::{
-    extract::{Path, State}, 
+    async_trait,
+    extract::{Path, FromRef, FromRequestParts, State}, 
     routing::get, 
     response::IntoResponse,
-    http::StatusCode,
+    http::{request::Parts, StatusCode},
     Router,
     Json,
 };
+use sqlx::postgres::{PgPool, PgPoolOptions};
 
 mod models;
-use models::{AppState, Gene, LethalGenes};
+use models::{Gene, Lethal, LethalGenes};
+
+struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for DatabaseConnection
+where
+    PgPool: FromRef<S>,
+    S: Send + Sync
+{
+    type Rejection = (StatusCode, String);
+
+    async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let pool = PgPool::from_ref(state);
+        let conn = pool.acquire().await.map_err(internal_error)?;
+        Ok(Self(conn))
+    }
+}
+
+fn internal_error<E>(err: E) -> (StatusCode, String) 
+where
+    E: std::error::Error
+{
+    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+}
 
 async fn get_lethality(
     Path(ident): Path<String>,
-    State(state): State<AppState>,
+    DatabaseConnection(mut conn): DatabaseConnection,
 ) -> impl IntoResponse {
-    let connection = match state.get_connection() {
-        Ok(conn) => conn,
-        Err(_) => {
-            dbg!("ERROR: failed to connect to DB");
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(None));
-        }
+    let gene = match Gene::new(&ident, &mut *conn).await {
+        Ok(g) => g,
+        Err(_)   => return (StatusCode::BAD_REQUEST, Json(None)),
     };
-
-    let gene = match Gene::new(&ident.to_uppercase(), None, &connection) {
-        Ok(gene) => gene,
-        Err(_) => return (StatusCode::BAD_REQUEST, Json(None))
-    };
-
-    let lethal_for_human_tests = gene.is_lethal_for(&connection).unwrap();
-
-    (StatusCode::OK, Json(Some(LethalGenes {
-        human_genes: lethal_for_human_tests,
-        mouse_genes: Gene::filter(&gene.map_to_being(2, &connection).unwrap(), &connection),
-        yeast_genes: Gene::filter(&gene.map_to_being(3, &connection).unwrap(), &connection),
-        request_gene: gene,
-    })))
+    
+    (StatusCode::OK, Json(Some(LethalGenes::new(gene, &mut *conn).await.unwrap())))
 }
 
 #[tokio::main]
 async fn main() {
-    let state = AppState::new("system", "lol", "localhost:1521");
+    let connection_str = "postgres://postgres:lol@localhost";
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(3))
+        .connect(connection_str).await.expect("can't connect to database");
 
     let app: Router = Router::new()
         .route("/:gene", get(get_lethality))
-        .with_state(state);
+        .with_state(pool);
 
     dbg!("Listening on localhost:3000");
     axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())

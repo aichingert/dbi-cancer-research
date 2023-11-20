@@ -1,35 +1,5 @@
-use std::sync::Arc;
-use oracle::Connection;
 use serde::{Serialize, Deserialize};
-
-type SQL = &'static str;
-
-const GENE_FROM_IDENT_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE name = :1";
-const GENE_FROM_ID_SQL: SQL = "SELECT gene_id, being_id, name, essential_score FROM gene WHERE gene_id = :1";
-
-const GENE_LETHALITY_SQL: SQL = "SELECT GENE1_ID, GENE2_ID, SCORE FROM SYN_LETH WHERE GENE1_ID = :1 OR GENE2_ID = :1 ORDER BY SCORE DESC";
-const GENES_MAPPING_SQL: SQL = "SELECT GENE1_ID, GENE2_ID FROM MAPPING WHERE GENE1_ID = :1 OR GENE2_ID = :1";
-
-#[derive(Clone)]
-pub struct AppState {
-    username: Arc<str>,
-    password: Arc<str>,
-    database: Arc<str>,
-}
-
-impl AppState {
-    pub fn new<'a>(username: &'a str, password: &'a str, database: &'a str) -> Self {
-        Self {
-            username: username.into(),
-            password: password.into(),
-            database: database.into(),
-        }
-    }
-
-    pub fn get_connection(&self) -> Result<Connection, oracle::Error> {
-        Connection::connect::<&str, &str, &str>(self.username.as_ref(), self.password.as_ref(), self.database.as_ref())
-    }
-}
+use sqlx::postgres::PgConnection;
 
 #[derive(Serialize, Deserialize)]
 pub struct LethalGenes {
@@ -39,98 +9,111 @@ pub struct LethalGenes {
     pub yeast_genes: Vec<Lethal>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Lethal {
-    gene: Gene,
-    lethality_score: f32,
+    pub gene: Gene,
+    pub lethality_score: f32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Gene {
-    id: i64,
-    being: i64,
+    pub gene_id: i32,
+    being_id: i16,
     name: String,
-    essentiality_score: Option<f32>,
+    essential_score: Option<f32>,
+}
+
+pub struct Mapping {
+    gene1_id: i32,
+    gene2_id: i32,
+}
+
+pub struct SynLeth {
+    gene1_id: i32,
+    gene2_id: i32,
+    score: f32,
 }
 
 impl Gene {
-    pub fn new(ident: &str, sql: Option<(SQL, i64)>, conn: &Connection) -> Result<Self, oracle::Error> {
-        let row = if let Some((sql, param)) = sql {
-            conn.query_row(sql, &[&param])?
-        } else {
-            conn.query_row(GENE_FROM_IDENT_SQL, &[&ident])?
-        };
-
-        Ok(Self {
-            id: row.get("gene_id").unwrap(),
-            name: row.get("name").unwrap(),
-            being: row.get("being_id").unwrap(),
-            essentiality_score: row.get("essential_score").unwrap(),
-        })
+    pub async fn new(ident: &str, conn: &mut PgConnection) -> Result<Gene, sqlx::Error> {
+        sqlx::query_as!(Gene, "SELECT * FROM gene WHERE name = UPPER($1)", ident)
+            .fetch_one(conn)
+            .await
     }
 
-    pub fn is_lethal_for(&self, connection: &Connection) -> Result<Vec<Lethal>, oracle::Error> {
-        let results = connection.query(GENE_LETHALITY_SQL, &[&self.id])?;
-        let mut lethal_genes = Vec::new();
+    pub async fn from_id(id: i32, conn: &mut PgConnection) -> Result<Gene, sqlx::Error> {
+        sqlx::query_as!(Gene, "SELECT * FROM gene WHERE gene_id = $1", id)
+            .fetch_one(conn)
+            .await
+    }
 
-        for row_res in results {
-            let row = row_res?;
+    pub async fn lethal_pairs(id: i32, conn: &mut PgConnection) -> Result<Vec<(i32, f32)>, sqlx::Error> {
+        let pairs = sqlx::query_as!(SynLeth, "SELECT * FROM Syn_Leth WHERE gene1_id = $1 OR gene2_id = $1", id)
+            .fetch_all(conn)
+            .await?;
 
-            let id = self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?);
-            let gene = Gene::new("", Some((GENE_FROM_ID_SQL, id)), connection)?;
+        Ok(pairs.iter().map(|pair| (if pair.gene1_id == id
+            { pair.gene2_id } else
+            { pair.gene1_id }, pair.score)
+        ).collect::<Vec<_>>())
+    }
 
-            lethal_genes.push(Lethal {
-                gene,
-                lethality_score: row.get("score")?,
+    pub async fn get_mappings(id: i32, conn: &mut PgConnection) -> Result<Vec<i32>, sqlx::Error> {
+        let mappings = sqlx::query_as!(Mapping, "SELECT * FROM mapping WHERE gene1_id = $1 OR gene2_id = $1", id)
+            .fetch_all(conn)
+            .await?;
+
+        Ok(mappings.iter().map(|mapping| if mapping.gene1_id == id
+            { mapping.gene2_id } else 
+            { mapping.gene1_id }
+            ).collect::<Vec<_>>()
+        )
+    }
+}
+
+impl LethalGenes {
+    pub async fn new(gene: Gene, conn: &mut PgConnection) -> Result<LethalGenes, sqlx::Error> {
+        let mut lethal_genes = Self {
+            request_gene: gene,
+            human_genes: Vec::new(),
+            mouse_genes: Vec::new(),
+            yeast_genes: Vec::new(),
+        };
+
+        for (id, score) in Gene::lethal_pairs(lethal_genes.request_gene.gene_id, &mut *conn).await? {
+            lethal_genes.human_genes.push(Lethal {
+                gene: Gene::from_id(id, &mut *conn).await?,
+                lethality_score: score,
             });
         }
 
-        Ok(lethal_genes)
-    }
+        for mapping in Gene::get_mappings(lethal_genes.request_gene.gene_id, &mut *conn).await? {
+            let mapped_gene = Gene::from_id(mapping, conn).await?;
+            let mut is_lethal: bool = false;
 
-    pub fn map_to_being(&self, being: i64, conn: &Connection) -> Result<Vec<Gene>, oracle::Error> {
-        let results = conn.query(GENES_MAPPING_SQL, &[&self.id])?;
-        let mut mapped_genes = Vec::new();
+            for pair in Gene::lethal_pairs(mapped_gene.gene_id, conn).await? {
+                let mappings = Gene::get_mappings(pair.0, conn).await?;
 
-        for row_result in results {
-            let row = row_result?;
-
-            let gene = Gene::new("",
-                Some((GENE_FROM_ID_SQL, self.get_other_id(row.get("gene1_id")?, row.get("gene2_id")?))),
-                conn
-            )?;
-
-            if gene.being != being {
-                continue;
-            }
-
-            mapped_genes.push(gene);
-        }
-
-        Ok(mapped_genes)
-    }
-
-    pub fn filter(genes: &Vec<Gene>, connection: &Connection) -> Vec<Lethal> {
-        let mut lethal = Vec::new();
-
-        for gene in genes {
-            let lethal_genes = gene.is_lethal_for(connection).unwrap();
-
-            for lethal_gene in lethal_genes {
-                if lethal_gene.gene.map_to_being(1, connection).unwrap().len() > 0 {
-                    lethal.push(lethal_gene);
+                for mapping in mappings {
+                    if Gene::from_id(mapping, conn).await?.being_id == 1 {
+                        is_lethal = true;
+                        break;
+                    }
                 }
-            }
+
+                let lethal = Lethal { 
+                    gene: Gene::from_id(pair.0, conn).await?, 
+                    lethality_score: pair.1 
+                };
+
+                match (is_lethal, lethal.gene.being_id) {
+                    (true, 2) => lethal_genes.mouse_genes.push(lethal),
+                    (true, 3) => lethal_genes.mouse_genes.push(lethal),
+                    _ => (),
+                }
+            } 
         }
 
-        lethal
-    }
-
-    fn get_other_id(&self, gene1_id: i64, gene2_id: i64) -> i64 {
-        if self.id == gene1_id {
-            gene2_id
-        } else {
-            gene1_id
-        }
+        Ok(lethal_genes)
     }
 }

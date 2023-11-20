@@ -398,7 +398,7 @@ func writeMappingsToDb(db *sql.DB, mappings []mapping) {
 
 func createTables(db *sql.DB) {
 	_, err := db.Exec(`CREATE TABLE BEING(
-    being_id NUMERIC(1) PRIMARY KEY NOT NULL,
+    being_id SMALLINT PRIMARY KEY NOT NULL,
     name VARCHAR(5) NOT NULL)`)
 
 	if err != nil {
@@ -406,10 +406,10 @@ func createTables(db *sql.DB) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE GENE(
-		gene_id NUMERIC(10) PRIMARY KEY NOT NULL,
-		being_id NUMERIC(1) NOT NULL,
+		gene_id INT PRIMARY KEY NOT NULL,
+		being_id SMALLINT NOT NULL,
 		name VARCHAR(15) NOT NULL,
-		essential_score FLOAT(5) NULL, 
+		essential_score FLOAT4 NULL, 
 		CONSTRAINT BEING_GENE_FK FOREIGN KEY (being_id) REFERENCES BEING(being_id))`)
 
 	if err != nil {
@@ -417,9 +417,9 @@ func createTables(db *sql.DB) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE SYN_LETH(
-		gene1_id NUMERIC(10) NOT NULL,
-		gene2_id NUMERIC(10) NOT NULL,
-		score FLOAT(5) NOT NULL,
+		gene1_id INT NOT NULL,
+		gene2_id INT NOT NULL,
+		score FLOAT4 NOT NULL,
 		PRIMARY KEY (gene1_id, gene2_id),
 		CONSTRAINT GENE1_DEP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
 		CONSTRAINT GENE2_DEP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id))`)
@@ -429,8 +429,8 @@ func createTables(db *sql.DB) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE Mapping(
-		gene1_id NUMERIC(10) NOT NULL,
-		gene2_id NUMERIC(10) NOT NULL,
+		gene1_id INT NOT NULL,
+		gene2_id INT NOT NULL,
 		PRIMARY KEY (gene1_id, gene2_id),
 		CONSTRAINT GENE1_MAP_FK FOREIGN KEY (gene1_id) REFERENCES GENE(gene_id),
 		CONSTRAINT GENE2_MAP_FK FOREIGN KEY (gene2_id) REFERENCES GENE(gene_id))`)

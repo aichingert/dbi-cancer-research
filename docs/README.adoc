@@ -13,8 +13,8 @@ This project is giving specialists the ability to quickly get a lethality score 
 
 == Team members
 
-* Ilming Winnie (parser, deployed on private server)
-* Tobias Aichinger (transform, visualize)
+* Ilming Winnie (parser, deploying)
+* Tobias Aichinger (transform, visualize, deploying)
 * Nikolaus Alexander (Documentation)
 * Breinesberger Markus (Documentation)
 
@@ -22,7 +22,7 @@ This project is giving specialists the ability to quickly get a lethality score 
 
 We have a rather simple data model, but it works for our use case. It uses a SynLeth table to store the synthetic relation of two genes and also has a gene table where it stores all the genes we have with the being.
 
-image::https://www.plantuml.com/plantuml/png/RP31oeCm48Jl-nJx0Zdy_x4dAPHIQ4y-GJ2Z1dGZoVOWwhktiLeGUXicyys4BPBQgC--emwriWQElccLdO-er0SXkeXw7VaA0K_4x1tUJkqHYTaOOXRR8sj6IldDTcKL8cZPsNAKExHTyGQ2c_lxgl-z9HsPCxmqs-1XQ25Q_xBCnipp9qVRmcxcm2zl8uCnOU9Ld_XXXo5N512N3_42[]
+image::https://www.plantuml.com/plantuml/png/RP3DYeGm48Jl_HJz0Zdi7lSa2yioC7Fo2O8fDQ0TINeEehxx67y6XBaLbVggGXT9RTHdtr67Mba3Hz-qoiv7LEg34Fs9UXtv7mAUYDaxh4xj4OdP668MsoDhHahvpNPb5I9eETbob3kqtV06WflxUgllioLTcLzuQOx1oz12jFrbcOsPvpr7vy9Xvi17RoU3CM7YJV_mmmv3hYWWRZt42m00[]
 
 == Data
 
@@ -50,7 +50,7 @@ CEGs - Genes essential in 80% or more tested cell lines.
 
 == Architecture
 
-image::https://www.plantuml.com/plantuml/png/HK_Doi8m4BplKoozzmK-FgI2nOjIGV4YFQpjsXRJL3SRHCLtDpIqvZ8_4sROp2c9-jx0ZQehDOmhKi8tO7Yd_TDkMDiogcAxdDWwpqlu0DYXPjoHE9R83qBMNGRfepnspfFfNWmrAPt9CIQ5K6Ku0HYNqdGn5KGOdVW78k1_QeBtgvvPI48mZ-0VDgmeVFVi51-Tji6mZ9Pw1iZOrk7IBm00[]
+image::https://www.plantuml.com/plantuml/png/FOz12y8m38Nl-HMXz_q14PdWyA8uKBp83j75RRXrscI8Yl_TQbrxwVVU2taa5IMdGzV2bKuNgXWNf8GlGFyEsuTTiTP5K9lrVAHbbXNm1h1zoPYJ4tQ1Tuwid7lN1RblPA2sUJAKf7GaOJHvBrev5WFmwqgI6Pgmmq3u_ruS70cdIVjDOek1Y3xpKIp42LQiwFWsi2ZU6wszOHajTGoGiYtzrHy0[]
 
 In the architecture above you can see that we have three layers in our project. Starting with the parser, continuing with the transformer and the last thing is the visualizer.
 
@@ -74,10 +74,10 @@ Here is the code for the score calculation:
 
 [source, rs]
 --
-let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
+let mut score = genes.request_gene.essential_score.unwrap_or_default();
 
 let pred = |g: &Lethal| -> f32 {
-    g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
+    g.lethality_score * g.gene.essential_score.unwrap_or_default()
 };
 
 let lethality_score =
@@ -88,10 +88,6 @@ let lethality_score =
 score += (1. - score) * lethality_score;
 --
 
-What it looks like:
-
-image::img/visualize.png[]
-
 == How to run the project local
 
 This setup was tested on arch linux (but it should also work for other linux distributions like ubuntu)
@@ -100,7 +96,6 @@ This setup was tested on arch linux (but it should also work for other linux dis
 ** go (version. go1.20.11)
 ** rust (version. cargo 1.73.0/nightly toolchain)
 *** trunk (cargo install trunk)
-** oracle-instant-client
 ** docker
 
 after installing these things you should be able to run the start.sh file in the root of the project
@@ -112,5 +107,4 @@ chmod +x start.sh
 ./start.sh
 
 ----
-
 

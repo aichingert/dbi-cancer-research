@@ -8,11 +8,11 @@ package Data {
 node Parser
 node Transform
 node Visualize
-database "Oracle"
+database "Postgres"
 
 Data --> "Parser"
-Parser --> "Oracle"
-Oracle <-l-> "Transform"
+Parser --> "Postgres"
+Postgres <-l-> "Transform"
 Transform <--> Visualize : get request with gene name
 
 @enduml

@@ -21,10 +21,10 @@ pub struct Lethal {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Gene {
-    id: i64,
-    being: usize,
+    gene_id: i64,
+    being_id: usize,
     name: String,
-    essentiality_score: Option<f32>,
+    essential_score: Option<f32>,
 }
 
 async fn fetch_lethal_genes<T>(gene_ident: String) -> Option<T>
@@ -94,10 +94,10 @@ pub fn App() -> impl IntoView {
                     None => None,
                     Some(None) => Some(view! { <p> "No gene found" </p> }.into_any()),
                     Some(Some(genes)) => {
-                        let mut score = genes.request_gene.essentiality_score.unwrap_or_default();
+                        let mut score = genes.request_gene.essential_score.unwrap_or_default();
 
                         let pred = |g: &Lethal| -> f32 {
-                            g.lethality_score * g.gene.essentiality_score.unwrap_or_default()
+                            g.lethality_score * g.gene.essential_score.unwrap_or_default()
                         };
 
                         let lethality_score =
@@ -131,12 +131,12 @@ pub fn Gene(gene: Gene) -> impl IntoView {
     view! {
         <div>
             <h3>Gene: </h3>
-            <p>id: {gene.id} </p>
+            <p>id: {gene.gene_id} </p>
             <p>name: {gene.name} </p>
-            <p>being: {BEINGS[gene.being - 1]} </p>
+            <p>being: {BEINGS[gene.being_id - 1]} </p>
             <p>essentiality:
-            {move || if let Some(essentiality_score) = gene.essentiality_score {
-                    essentiality_score.to_string()
+            {move || if let Some(essential_score) = gene.essential_score {
+                    essential_score.to_string()
                 } else {
                     "Not essential".to_string()
                 }
@@ -153,7 +153,7 @@ pub fn LethalGeneList(lethal_genes: Vec<Lethal>) -> impl IntoView {
             <ul>
                 <For
                     each=move || lethal_genes.clone()
-                    key=|gene| gene.gene.id
+                    key=|gene| gene.gene.gene_id
                     let:gene
                 >
                     <Gene gene=gene.gene />

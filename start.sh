@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DIR="db"
+WORKING=$(pwd)
 
 if test ! -d $DIR; then
 	mkdir $DIR
@@ -12,11 +13,10 @@ if test ! -d $DIR; then
   postgres
 fi
 
-pushd parsing/setup-db
-
+cd parsing/setup-db
 go run .
 
-popd
+cd $WORKING
 
 #pushd transform
 #
