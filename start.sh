@@ -1,31 +1,23 @@
 #!/bin/sh
 
-DIR="db"
 WORKING=$(pwd)
 
-if test ! -d $DIR; then
-	mkdir $DIR
-	chmod -R o+w $DIR
+docker run -d --name postgresdb \
+-p 5432:5432 \
+-e POSTGRES_PASSWORD=lol \
+postgres
 
-	docker run -d --name postgresdb \
-  -p 5432:5432 \
-  -e POSTGRES_PASSWORD=lol \
-  postgres
-fi
+sleep 3
 
 cd parsing/setup-db
 go run .
 
 cd $WORKING
 
-#pushd transform
-#
-#cargo r -r &
-#
-#popd
-#
-#pushd visualize
-#
-#trunk serve --open
-#
-#popd
+cd transform
+cargo r -r &
+cd ..
+
+cd visualize
+trunk serve --open &
+cd ..

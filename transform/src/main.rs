@@ -1,6 +1,6 @@
 use axum::{
     async_trait,
-    extract::{Path, FromRef, FromRequestParts, State}, 
+    extract::{Path, FromRef, FromRequestParts}, 
     routing::get, 
     response::IntoResponse,
     http::{request::Parts, StatusCode},
@@ -10,7 +10,7 @@ use axum::{
 use sqlx::postgres::{PgPool, PgPoolOptions};
 
 mod models;
-use models::{Gene, Lethal, LethalGenes};
+use models::{Gene, LethalGenes};
 
 struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
 

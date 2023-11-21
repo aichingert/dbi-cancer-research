@@ -13,8 +13,8 @@ This project is giving specialists the ability to quickly get a lethality score 
 
 == Team members
 
-* Ilming Winnie (parser, deploying)
-* Tobias Aichinger (transform, visualize, deploying)
+* Ilming Winnie (parser)
+* Tobias Aichinger (transform, visualize)
 * Nikolaus Alexander (Documentation)
 * Breinesberger Markus (Documentation)
 
@@ -60,7 +60,7 @@ Here we use a go program which reads all the files and brings the data the form 
 
 === Transform
 
-Transform is a axum a web application framework which has a single get request taking a gene identifier (name) as a path parameter and returns the transformed data (=> meaning we get the gene from the identifier from the database, and then we use that gene to map it to the other beings we have. After that we check if one of the genes is synthetic lethal and for the case of other beings we check that the gene is also contained in the human)
+Transform is a axum web application framework which has a single get request taking a gene identifier (name) as a path parameter and returns the transformed data (=> meaning we get the gene from the identifier from the database, and then we use that gene to map it to the other beings we have. After that we check if one of the genes is synthetic lethal and for the case of other beings we check that the gene is also contained in the human)
 
 === Visualize
 
@@ -88,9 +88,13 @@ let lethality_score =
 score += (1. - score) * lethality_score;
 --
 
+=== What it looks like:
+
+image::img/visualize.png[]
+
 == How to run the project local
 
-This setup was tested on arch linux (but it should also work for other linux distributions like ubuntu)
+This setup was tested on arch linux(but it should also work for other linux distributions like ubuntu)
 
 * Dependencies
 ** go (version. go1.20.11)
