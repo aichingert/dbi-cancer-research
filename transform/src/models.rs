@@ -114,6 +114,20 @@ impl LethalGenes {
             } 
         }
 
+        let pred = |a: &Lethal, b: &Lethal| -> std::cmp::Ordering {
+            if a.lethality_score < b.lethality_score {
+                std::cmp::Ordering::Greater
+            } else if b.lethality_score < a.lethality_score {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        };
+
+        lethal_genes.human_genes.sort_by(pred);
+        lethal_genes.mouse_genes.sort_by(pred);
+        lethal_genes.yeast_genes.sort_by(pred);
+
         Ok(lethal_genes)
     }
 }

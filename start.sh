@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 WORKING=$(pwd)
 
 docker run -d --name postgresdb \
