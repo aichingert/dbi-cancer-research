@@ -2,7 +2,7 @@ use leptos::{html::Input, *};
 use leptos_dom::log;
 use serde::{Deserialize, Serialize};
 
-const BEINGS: [&'static str; 3] = ["HUMAN", "MOUSE", "YEAST"];
+const BEINGS: [&str; 3] = ["HUMAN", "MOUSE", "YEAST"];
 const ENTER_KEY: u32 = 13;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,9 +40,9 @@ where
         .await
         .ok()?;
 
-    let res = T::de(&json).ok();
+    
 
-    res
+    T::de(&json).ok()
 }
 
 #[component]
@@ -51,15 +51,11 @@ pub fn App() -> impl IntoView {
     let input_ref = create_node_ref::<Input>();
     let (_, set_pending) = create_signal(false);
 
-    let get_gene = move || {
-        gene.get().clone()
-    };
+    let get_gene = move || gene.get().clone();
 
     let lethal_genes = create_resource(
-        move || (get_gene()),
-        move |gene| async move {
-            fetch_lethal_genes::<LethalGenes>(gene).await
-        }
+        get_gene,
+        move |gene| async move { fetch_lethal_genes::<LethalGenes>(gene).await },
     );
 
     let find_gene = move |ev: web_sys::KeyboardEvent| {
@@ -143,7 +139,8 @@ pub fn Gene(gene: Gene) -> impl IntoView {
             }
             </p>
         </div>
-    }.into_view()
+    }
+    .into_view()
 }
 
 #[component]

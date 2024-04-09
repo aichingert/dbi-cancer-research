@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgConnection;
 
 #[derive(Serialize, Deserialize)]
@@ -47,27 +47,52 @@ impl Gene {
             .await
     }
 
-    pub async fn lethal_pairs(id: i32, conn: &mut PgConnection) -> Result<Vec<(i32, f32)>, sqlx::Error> {
-        let pairs = sqlx::query_as!(SynLeth, "SELECT * FROM Syn_Leth WHERE gene1_id = $1 OR gene2_id = $1", id)
-            .fetch_all(conn)
-            .await?;
+    pub async fn lethal_pairs(
+        id: i32,
+        conn: &mut PgConnection,
+    ) -> Result<Vec<(i32, f32)>, sqlx::Error> {
+        let pairs = sqlx::query_as!(
+            SynLeth,
+            "SELECT * FROM Syn_Leth WHERE gene1_id = $1 OR gene2_id = $1",
+            id
+        )
+        .fetch_all(conn)
+        .await?;
 
-        Ok(pairs.iter().map(|pair| (if pair.gene1_id == id
-            { pair.gene2_id } else
-            { pair.gene1_id }, pair.score)
-        ).collect::<Vec<_>>())
+        Ok(pairs
+            .iter()
+            .map(|pair| {
+                (
+                    if pair.gene1_id == id {
+                        pair.gene2_id
+                    } else {
+                        pair.gene1_id
+                    },
+                    pair.score,
+                )
+            })
+            .collect::<Vec<_>>())
     }
 
     pub async fn get_mappings(id: i32, conn: &mut PgConnection) -> Result<Vec<i32>, sqlx::Error> {
-        let mappings = sqlx::query_as!(Mapping, "SELECT * FROM mapping WHERE gene1_id = $1 OR gene2_id = $1", id)
-            .fetch_all(conn)
-            .await?;
-
-        Ok(mappings.iter().map(|mapping| if mapping.gene1_id == id
-            { mapping.gene2_id } else 
-            { mapping.gene1_id }
-            ).collect::<Vec<_>>()
+        let mappings = sqlx::query_as!(
+            Mapping,
+            "SELECT * FROM mapping WHERE gene1_id = $1 OR gene2_id = $1",
+            id
         )
+        .fetch_all(conn)
+        .await?;
+
+        Ok(mappings
+            .iter()
+            .map(|mapping| {
+                if mapping.gene1_id == id {
+                    mapping.gene2_id
+                } else {
+                    mapping.gene1_id
+                }
+            })
+            .collect::<Vec<_>>())
     }
 }
 
@@ -80,7 +105,8 @@ impl LethalGenes {
             yeast_genes: Vec::new(),
         };
 
-        for (id, score) in Gene::lethal_pairs(lethal_genes.request_gene.gene_id, &mut *conn).await? {
+        for (id, score) in Gene::lethal_pairs(lethal_genes.request_gene.gene_id, &mut *conn).await?
+        {
             lethal_genes.human_genes.push(Lethal {
                 gene: Gene::from_id(id, &mut *conn).await?,
                 lethality_score: score,
@@ -101,9 +127,9 @@ impl LethalGenes {
                     }
                 }
 
-                let lethal = Lethal { 
-                    gene: Gene::from_id(pair.0, conn).await?, 
-                    lethality_score: pair.1 
+                let lethal = Lethal {
+                    gene: Gene::from_id(pair.0, conn).await?,
+                    lethality_score: pair.1,
                 };
 
                 match (is_lethal, lethal.gene.being_id) {
@@ -111,7 +137,7 @@ impl LethalGenes {
                     (true, 3) => lethal_genes.mouse_genes.push(lethal),
                     _ => (),
                 }
-            } 
+            }
         }
 
         let pred = |a: &Lethal, b: &Lethal| -> std::cmp::Ordering {

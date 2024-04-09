@@ -1,11 +1,10 @@
 use axum::{
     async_trait,
-    extract::{Path, FromRef, FromRequestParts}, 
-    routing::get, 
-    response::IntoResponse,
+    extract::{FromRef, FromRequestParts, Path},
     http::{request::Parts, StatusCode},
-    Router,
-    Json,
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
 };
 use sqlx::postgres::{PgPool, PgPoolOptions};
 
@@ -18,7 +17,7 @@ struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
 impl<S> FromRequestParts<S> for DatabaseConnection
 where
     PgPool: FromRef<S>,
-    S: Send + Sync
+    S: Send + Sync,
 {
     type Rejection = (StatusCode, String);
 
@@ -29,9 +28,9 @@ where
     }
 }
 
-fn internal_error<E>(err: E) -> (StatusCode, String) 
+fn internal_error<E>(err: E) -> (StatusCode, String)
 where
-    E: std::error::Error
+    E: std::error::Error,
 {
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }
@@ -42,10 +41,13 @@ async fn get_lethality(
 ) -> impl IntoResponse {
     let gene = match Gene::new(&ident, &mut *conn).await {
         Ok(g) => g,
-        Err(_)   => return (StatusCode::BAD_REQUEST, Json(None)),
+        Err(_) => return (StatusCode::BAD_REQUEST, Json(None)),
     };
-    
-    (StatusCode::OK, Json(Some(LethalGenes::new(gene, &mut *conn).await.unwrap())))
+
+    (
+        StatusCode::OK,
+        Json(Some(LethalGenes::new(gene, &mut *conn).await.unwrap())),
+    )
 }
 
 #[tokio::main]
@@ -55,7 +57,9 @@ async fn main() {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(std::time::Duration::from_secs(3))
-        .connect(connection_str).await.expect("can't connect to database");
+        .connect(connection_str)
+        .await
+        .expect("can't connect to database");
 
     let app: Router = Router::new()
         .route("/:gene", get(get_lethality))
